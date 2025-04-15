@@ -26,6 +26,11 @@ import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 
+type ExtendedMessage = Message & {
+  reasoning?: string;
+  toolInvocations?: Array<any>;
+  experimental_attachments?: Array<any>;
+};
 
 export const maxDuration = 60;
 
@@ -34,7 +39,7 @@ export async function POST(request: Request) {
     id,
     messages,
     selectedChatModel,
-  }: { id: string; messages: Array<Message>; selectedChatModel: string } =
+  }: { id: string; messages: Array<ExtendedMessage>; selectedChatModel: string } =
     await request.json();
 
   const session = await auth();
@@ -57,9 +62,18 @@ export async function POST(request: Request) {
   }
 
   await saveMessages({
-    messages: [{ ...userMessage, createdAt: new Date(), chatId: id }],
+    messages: [{
+      id: userMessage.id,
+      chatId: id,
+      role: userMessage.role,
+      parts: userMessage.content ? [{
+        type: 'text',
+        text: userMessage.content,
+      }] : [],
+      attachments: userMessage.experimental_attachments || [],
+      createdAt: new Date(),
+    }],
   });
-
 
   return createDataStreamResponse({
     execute: (dataStream) => {
@@ -95,11 +109,43 @@ export async function POST(request: Request) {
 
               await saveMessages({
                 messages: sanitizedResponseMessages.map((message) => {
+                  const parts = [];
+                  
+                  // Add text part if content exists
+                  if (message.content) {
+                    parts.push({
+                      type: 'text',
+                      text: message.content,
+                    });
+                  }
+
+                  // Add reasoning part if it exists
+                  if (reasoning) {
+                    parts.push({
+                      type: 'reasoning',
+                      reasoning,
+                    });
+                  }
+
+                  // Add tool invocations if they exist
+                  if ('toolInvocations' in message) {
+                    const toolInvocations = (message as any).toolInvocations;
+                    if (toolInvocations) {
+                      for (const toolInvocation of toolInvocations) {
+                        parts.push({
+                          type: 'tool-invocation',
+                          toolInvocation,
+                        });
+                      }
+                    }
+                  }
+
                   return {
                     id: message.id,
                     chatId: id,
                     role: message.role,
-                    content: message.content,
+                    parts,
+                    attachments: 'experimental_attachments' in message ? (message as any).experimental_attachments || [] : [],
                     createdAt: new Date(),
                   };
                 }),

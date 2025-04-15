@@ -1,17 +1,44 @@
 'use client';
 
-import { ChatRequestOptions, Message } from 'ai';
+import type { ChatRequestOptions } from 'ai';
 import { Button } from './ui/button';
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Textarea } from './ui/textarea';
 import { deleteTrailingMessages } from '@/app/(chat)/actions';
 import { toast } from 'sonner';
+import type { CustomMessage, TextUIPart } from '@/types/message';
+
+type ReasoningUIPart = {
+  type: 'reasoning';
+  reasoning: string;
+};
+
+type ToolInvocationUIPart = {
+  type: 'tool-invocation';
+  toolInvocation: {
+    toolName: string;
+    toolCallId: string;
+    state: 'call' | 'result' | 'partial-call';
+    args?: any;
+    result?: any;
+    step?: number;
+  };
+};
+
+type MessagePart = TextUIPart | ReasoningUIPart | ToolInvocationUIPart;
+
+type Attachment = {
+  url: string;
+  type: string;
+  name: string;
+};
 
 export type MessageEditorProps = {
-  message: Message;
+  message: CustomMessage;
   setMode: Dispatch<SetStateAction<'view' | 'edit'>>;
   setMessages: (
-    messages: Message[] | ((messages: Message[]) => Message[]),
+    messages: CustomMessage[] | ((messages: CustomMessage[]) => CustomMessage[]),
   ) => void;
   reload: (
     chatRequestOptions?: ChatRequestOptions,
@@ -26,7 +53,7 @@ export function MessageEditor({
 }: MessageEditorProps) {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const [draftContent, setDraftContent] = useState<string>(message.content);
+  const [draftContent, setDraftContent] = useState<string>(message.content || '');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -81,9 +108,15 @@ export function MessageEditor({
               const index = messages.findIndex((m) => m.id === message.id);
 
               if (index !== -1) {
-                const updatedMessage = {
+                const textPart: TextUIPart = {
+                  type: 'text',
+                  text: draftContent,
+                };
+
+                const updatedMessage: CustomMessage = {
                   ...message,
                   content: draftContent,
+                  parts: [textPart],
                 };
 
                 return [...messages.slice(0, index), updatedMessage];

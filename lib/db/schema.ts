@@ -33,7 +33,7 @@ export const chat = pgTable("Chat", {
 
 export type Chat = InferSelectModel<typeof chat>;
 
-export const message = pgTable("Message", {
+export const messageDeprecated = pgTable("Message", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   chatId: uuid("chatId")
     .notNull()
@@ -43,10 +43,43 @@ export const message = pgTable("Message", {
   createdAt: timestamp("createdAt").notNull(),
 });
 
+export type MessageDeprecated = InferSelectModel<typeof messageDeprecated>;
+
+export const voteDeprecated = pgTable(
+  "Vote",
+  {
+    chatId: uuid("chatId")
+      .notNull()
+      .references(() => chat.id),
+    messageId: uuid("messageId")
+      .notNull()
+      .references(() => messageDeprecated.id),
+    isUpvoted: boolean("isUpvoted").notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.chatId, table.messageId] }),
+    };
+  }
+);
+
+export type VoteDeprecated = InferSelectModel<typeof voteDeprecated>;
+
+export const message = pgTable("Message_v2", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  chatId: uuid("chatId")
+    .notNull()
+    .references(() => chat.id),
+  role: varchar("role").notNull(),
+  parts: json("parts").notNull(),
+  attachments: json("attachments").notNull(),
+  createdAt: timestamp("createdAt").notNull(),
+});
+
 export type Message = InferSelectModel<typeof message>;
 
 export const vote = pgTable(
-  "Vote",
+  "Vote_v2",
   {
     chatId: uuid("chatId")
       .notNull()

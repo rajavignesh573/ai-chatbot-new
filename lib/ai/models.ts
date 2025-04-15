@@ -5,6 +5,7 @@ import {
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from "ai";
+import { difyProvider } from "./dify";
 
 export const DEFAULT_CHAT_MODEL: string = "chat-model-small";
 
@@ -16,9 +17,12 @@ export const myProvider = customProvider({
       model: fireworks("accounts/fireworks/models/deepseek-r1"),
       middleware: extractReasoningMiddleware({ tagName: "think" }),
     }),
-    "title-model": openai("gpt-4o"), // Changed from gpt-4-turbo to gpt-4o
+    "title-model": openai("gpt-4o"),
     "artifact-model": openai("gpt-4o-mini"),
-    "stroller-model": openai("gpt-4o"), // Changed from gpt-4-turbo to gpt-4o
+    "stroller-model": openai("gpt-4o"),
+    "dify-chat": difyProvider.languageModel("dify-chat"),
+    "dify-wizard": difyProvider.languageModel("dify-wizard"),
+    "dify-stroller": difyProvider.languageModel("dify-stroller"),
   },
   imageModels: {
     "small-model": openai.image("dall-e-2"),
@@ -47,5 +51,20 @@ export const chatModels: Array<ChatModel> = [
     id: "chat-model-reasoning",
     name: "Reasoning model",
     description: "Uses advanced reasoning",
+  },
+  {
+    id: "dify-chat",
+    name: "Dify Chat",
+    description: "General purpose chat model",
+  },
+  {
+    id: "dify-wizard",
+    name: "Dify Wizard",
+    description: "Advanced assistant for complex tasks",
+  },
+  {
+    id: "dify-stroller",
+    name: "Stroller Assistant",
+    description: "Get personalized stroller recommendations",
   },
 ];

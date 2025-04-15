@@ -1,4 +1,4 @@
-import type { Message } from 'ai';
+import type { CustomMessage } from '@/types/message';
 import { toast } from 'sonner';
 import { useSWRConfig } from 'swr';
 import { useCopyToClipboard } from 'usehooks-ts';
@@ -23,7 +23,7 @@ export function PureMessageActions({
   isLoading,
 }: {
   chatId: string;
-  message: Message;
+  message: CustomMessage;
   vote: Vote | undefined;
   isLoading: boolean;
 }) {
@@ -44,7 +44,7 @@ export function PureMessageActions({
               className="py-1 px-2 h-fit text-muted-foreground"
               variant="outline"
               onClick={async () => {
-                await copyToClipboard(message.content as string);
+                await copyToClipboard(message.content || '');
                 toast.success('Copied to clipboard!');
               }}
             >

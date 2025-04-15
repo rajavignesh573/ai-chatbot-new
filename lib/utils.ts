@@ -10,6 +10,7 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 import type { Message as DBMessage, Document } from '@/lib/db/schema';
+import type { MessagePart } from '@/types/message';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -45,7 +46,7 @@ export function getLocalStorage(key: string) {
 }
 
 export const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
@@ -85,13 +86,26 @@ function addToolMessageToChat({
   });
 }
 
+interface MessageContent {
+  type: string;
+  text?: string;
+  toolCallId?: string;
+  toolName?: string;
+  args?: any;
+  reasoning?: string;
+}
+
 export function convertToUIMessages(
   messages: Array<DBMessage>,
 ): Array<Message> {
   return messages.reduce((chatMessages: Array<Message>, message) => {
     if (message.role === 'tool') {
+      const toolMessage: CoreToolMessage = {
+        role: 'tool',
+        content: [],
+      };
       return addToolMessageToChat({
-        toolMessage: message as CoreToolMessage,
+        toolMessage,
         messages: chatMessages,
       });
     }
@@ -100,23 +114,31 @@ export function convertToUIMessages(
     let reasoning: string | undefined = undefined;
     const toolInvocations: Array<ToolInvocation> = [];
 
-    if (typeof message.content === 'string') {
-      textContent = message.content;
-    } else if (Array.isArray(message.content)) {
-      for (const content of message.content) {
-        if (content.type === 'text') {
-          textContent += content.text;
-        } else if (content.type === 'tool-call') {
-          toolInvocations.push({
-            state: 'call',
-            toolCallId: content.toolCallId,
-            toolName: content.toolName,
-            args: content.args,
-          });
-        } else if (content.type === 'reasoning') {
-          reasoning = content.reasoning;
+    try {
+      // Try to parse parts as JSON if it's a string
+      const parts = typeof message.parts === 'string' 
+        ? JSON.parse(message.parts)
+        : message.parts;
+
+      if (Array.isArray(parts)) {
+        for (const part of parts as MessagePart[]) {
+          if (part.type === 'text') {
+            textContent += part.text;
+          } else if (part.type === 'tool-invocation') {
+            toolInvocations.push({
+              state: part.toolInvocation.state,
+              toolCallId: part.toolInvocation.toolCallId,
+              toolName: part.toolInvocation.toolName,
+              args: part.toolInvocation.args,
+              result: part.toolInvocation.result,
+            });
+          } else if (part.type === 'reasoning') {
+            reasoning = part.reasoning;
+          }
         }
       }
+    } catch (error) {
+      console.error('Failed to parse message parts:', error);
     }
 
     chatMessages.push({
